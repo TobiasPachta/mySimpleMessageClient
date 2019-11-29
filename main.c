@@ -64,11 +64,17 @@ int main(int argc, char * argv[]) {
     if(success < 0)
         logMessage("Something went wrong while connecting to socket");
 
+    //WENN auch lesen dann muss man tcpSocketfd dublicaten und dann ein eigenen filepointerread erstellen
+    FILE *fpw = fdopen(tcpSocketFD, "w");
     //write on Socket
-    if(write(tcpSocketFD, message, strlen(message)))
+    if(fprintf(fpw, "%s", message))
         logMessage("Something went wrong with writing on socket");
+    fflush(fpw);
+
+    shutdown(tcpSocketFD, SHUT_WR);
 
     //close socket
+    fclose(fpw);
     close(tcpSocketFD);
 
     return 0;
