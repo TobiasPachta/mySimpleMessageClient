@@ -10,17 +10,66 @@
 #include <time.h>
 #include <string.h>
 #include "simple_message_client_commandline_handling.h"
+#include "logger.h"
+
+//typedef void (* smc_usagefunc_t) (FILE *, const char *, int);
 
 int main(int argc, char * argv[]) {
 
-    char * server = "";
+    char * serverIP = "127.0.0.1";
     char * port = "7490";
     char * user = "ic18b028";
     char * message = "message";
     char * image = "";
     int verbose = 0;
 
+    //TODO: read args
+    // Fragen wie das mit smc_usagefunc_t funktioniert, weil wenn man ein typ defenieren muss muss der compiler C11 + sein wir sind gerade auf C99
+    //smc_parsecommandline(argc,argv,smc_usagefunc_t,&serverIP,&port,&user,&message,&image,&verbose);
 
-    smc_parsecommandline(argc,argv,smc_usagefunc_t,&server,&port,&user,&message,&image,&verbose);
+    //Check if serverIp is ipv4 or ipv6
+    struct addrinfo hint, *res= NULL;
 
+    memset(&hint, '\0', sizeof(hint));
+
+    hint.ai_family = PF_UNSPEC;
+    hint.ai_family = AI_NUMERICHOST;
+
+    int success = getaddrinfo(serverIP, NULL, &hint, &res);
+    if(success < 0)
+        logMessage("Something went wrong at getaddrinfo");
+
+    //create tcp socket
+    int tcpSocketFD = 0;
+
+    if(res->ai_family == AF_INET)
+        tcpSocketFD = socket(AF_INET, SOCK_STREAM, SOCK_NONBLOCK);
+    else if(res->ai_family == AF_INET6)
+        tcpSocketFD = socket(AF_INET6, SOCK_STREAM, SOCK_NONBLOCK);
+
+    if(tcpSocketFD < 0)
+        logMessage("Something went wrong while creating the socket.");
+
+    //connect to Server
+    struct sockaddr *socketAddress;
+    socklen_t addressLength = sizeof(struct sockaddr) - 1;
+
+    memset(&socketAddress, 0 ,sizeof(struct sockaddr));
+
+    socketAddress->sa_family = AF_UNIX;
+    strncpy(socketAddress->sa_data, serverIP, addressLength);
+
+    success = connect(tcpSocketFD, (struct sockaddr *) &socketAddress, addressLength);
+
+    if(success < 0)
+        logMessage("Something went wrong while connecting to socket");
+
+    //write on Socket
+    if(write(tcpSocketFD, message, strlen(message)))
+        logMessage("Something went wrong with writing on socket");
+
+    //close socket
+    close(tcpSocketFD);
+
+    return 0;
 }
