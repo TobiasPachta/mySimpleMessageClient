@@ -33,7 +33,7 @@ int main(int argc, char * argv[]) {
     memset(&hint, '\0', sizeof(hint));
 
     hint.ai_family = PF_UNSPEC;
-    hint.ai_family = AI_NUMERICHOST;
+    hint.ai_flags = AI_NUMERICHOST;
 
     int success = getaddrinfo(serverIP, NULL, &hint, &res);
     if(success < 0)
