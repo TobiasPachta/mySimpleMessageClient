@@ -24,66 +24,63 @@ int main(const int argc,const char *argv[]) {
     const char *image;
     int verbose;
 
-    //TODO: read args
-    // Fragen wie das mit smc_usagefunc_t funktioniert, weil wenn man ein typ defenieren muss muss der compiler C11 + sein wir sind gerade auf C99
     smc_parsecommandline(argc,argv,usagefunc,&serverIP,&port,&user,&message,&image,&verbose);
 
-    //Check if serverIp is ipv4 or ipv6
     struct addrinfo hint, *res= NULL;
 
     memset(&hint, '\0', sizeof(hint));
 
     hint.ai_family = PF_UNSPEC;
     hint.ai_flags = AI_NUMERICHOST;
+    hint.ai_socktype = SOCK_STREAM;
 
     int success = getaddrinfo(serverIP, port, &hint, &res);
     if(success < 0){
-	logMessage(gai_strerror(success));
-	logMessage("\n");
-        logMessage("Something went wrong at getaddrinfo\n");
-	return 1;
+	    logError(gai_strerror(success));
+        logError("Something went wrong at getaddrinfo");
+	    return 1;
 	}
-
-    //create sockaddr
-    struct sockaddr socketAddress;
-    socklen_t addressLength = sizeof(struct sockaddr) - 1;
-
-    memset(&socketAddress, 0 ,sizeof(struct sockaddr));
 
     //create tcp socket
     int tcpSocketFD = 0;
 
-    if(res->ai_family == AF_INET) {
-        tcpSocketFD = socket(AF_INET, SOCK_STREAM, 0);
-        socketAddress.sa_family = AF_INET;
-    }
-    else if(res->ai_family == AF_INET6) {
-        socketAddress.sa_family = AF_INET6;
-        tcpSocketFD = socket(AF_INET6, SOCK_STREAM, 0);
-    }
+    tcpSocketFD = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
     if(tcpSocketFD < 0) {
-        logMessage("Something went wrong while creating the socket.\n");
-	return 1;
+        logError("Something went wrong while creating the socket");
+	    return 1;
 	}
 
     //connect to Server
-    strncpy(socketAddress.sa_data, serverIP, addressLength);
-
-    success = connect(tcpSocketFD, (struct sockaddr *) &socketAddress, addressLength);
+    success = connect(tcpSocketFD, res->ai_addr, res->ai_addrlen);
 
     if(success < 0){
-        logMessage("Something went wrong while connecting to socket\n");
-	return 1;
+        logError("Something went wrong while connecting to socket");
+        close(tcpSocketFD);
+	    return 1;
 	}
+
+    logMessage("Connected to Server");
 
     //WENN auch lesen dann muss man tcpSocketfd dublicaten und dann ein eigenen filepointerread erstellen
     FILE *fpw = fdopen(tcpSocketFD, "w");
+
+    if(fpw == NULL){
+        logError("Something went wrong a opening a writter file descriptor");
+        close(tcpSocketFD);
+        return 1;
+    }
+
     //write on Socket
-    if(fprintf(fpw, "%s", message)){
-        logMessage("Something went wrong with writing on socket\n");
-	return 1;
+    if(fprintf(fpw, "%s \n", message) < 0){
+        logError("Something went wrong with writing on socket\n");
+        fclose(fpw);
+        close(tcpSocketFD);
+	    return 1;
 	}
+
+    logMessage("Message Sent:");
+    logMessage(message);
 
     fflush(fpw);
 

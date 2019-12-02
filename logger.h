@@ -12,3 +12,5 @@
 #endif //MYSIMPLEMESSAGECLIENT_LOGGER_H
 
 void logMessage(const char *message);
+
+void logError(const char *message);
