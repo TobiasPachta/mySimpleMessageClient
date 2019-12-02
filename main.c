@@ -13,19 +13,20 @@
 #include "logger.h"
 
 //typedef void (* smc_usagefunc_t) (FILE *, const char *, int);
+void usagefunc(FILE *stream, const char *cmnd, int exitcode);
 
-int main(int argc, char * argv[]) {
+int main(const int argc,const char *argv[]) {
 
-    char * serverIP = "127.0.0.1";
-    char * port = "7490";
-    char * user = "ic18b028";
-    char * message = "message";
-    char * image = "";
-    int verbose = 0;
+    const char *serverIP;
+    const char *port;
+    const char *user;
+    const char *message;
+    const char *image;
+    int verbose;
 
     //TODO: read args
     // Fragen wie das mit smc_usagefunc_t funktioniert, weil wenn man ein typ defenieren muss muss der compiler C11 + sein wir sind gerade auf C99
-    //smc_parsecommandline(argc,argv,smc_usagefunc_t,&serverIP,&port,&user,&message,&image,&verbose);
+    smc_parsecommandline(argc,argv,usagefunc,&serverIP,&port,&user,&message,&image,&verbose);
 
     //Check if serverIp is ipv4 or ipv6
     struct addrinfo hint, *res= NULL;
@@ -39,24 +40,28 @@ int main(int argc, char * argv[]) {
     if(success < 0)
         logMessage("Something went wrong at getaddrinfo");
 
-    //create tcp socket
-    int tcpSocketFD = 0;
-
-    if(res->ai_family == AF_INET)
-        tcpSocketFD = socket(AF_INET, SOCK_STREAM, SOCK_NONBLOCK);
-    else if(res->ai_family == AF_INET6)
-        tcpSocketFD = socket(AF_INET6, SOCK_STREAM, SOCK_NONBLOCK);
-
-    if(tcpSocketFD < 0)
-        logMessage("Something went wrong while creating the socket.");
-
-    //connect to Server
+    //create sockaddr
     struct sockaddr *socketAddress;
     socklen_t addressLength = sizeof(struct sockaddr) - 1;
 
     memset(&socketAddress, 0 ,sizeof(struct sockaddr));
 
-    socketAddress->sa_family = AF_UNIX;
+    //create tcp socket
+    int tcpSocketFD = 0;
+
+    if(res->ai_family == AF_INET) {
+        tcpSocketFD = socket(AF_INET, SOCK_STREAM, SOCK_NONBLOCK);
+        socketAddress->sa_family = AF_INET;
+    }
+    else if(res->ai_family == AF_INET6) {
+        socketAddress->sa_family = AF_INET6;
+        tcpSocketFD = socket(AF_INET6, SOCK_STREAM, SOCK_NONBLOCK);
+    }
+
+    if(tcpSocketFD < 0)
+        logMessage("Something went wrong while creating the socket.");
+
+    //connect to Server
     strncpy(socketAddress->sa_data, serverIP, addressLength);
 
     success = connect(tcpSocketFD, (struct sockaddr *) &socketAddress, addressLength);
@@ -78,4 +83,9 @@ int main(int argc, char * argv[]) {
     close(tcpSocketFD);
 
     return 0;
+}
+
+void usagefunc(FILE *stream, const char *cmnd, int exitcode){
+    fprintf(stream, "%s", cmnd);
+    exit(exitcode);
 }
