@@ -36,12 +36,16 @@ int main(const int argc,const char *argv[]) {
     hint.ai_family = PF_UNSPEC;
     hint.ai_flags = AI_NUMERICHOST;
 
-    int success = getaddrinfo(serverIP, NULL, &hint, &res);
-    if(success < 0)
-        logMessage("Something went wrong at getaddrinfo");
+    int success = getaddrinfo(serverIP, port, &hint, &res);
+    if(success < 0){
+	logMessage(gai_strerror(success));
+	logMessage("\n");
+        logMessage("Something went wrong at getaddrinfo\n");
+	return 1;
+	}
 
     //create sockaddr
-    struct sockaddr *socketAddress;
+    struct sockaddr socketAddress;
     socklen_t addressLength = sizeof(struct sockaddr) - 1;
 
     memset(&socketAddress, 0 ,sizeof(struct sockaddr));
@@ -50,30 +54,37 @@ int main(const int argc,const char *argv[]) {
     int tcpSocketFD = 0;
 
     if(res->ai_family == AF_INET) {
-        tcpSocketFD = socket(AF_INET, SOCK_STREAM, SOCK_NONBLOCK);
-        socketAddress->sa_family = AF_INET;
+        tcpSocketFD = socket(AF_INET, SOCK_STREAM, 0);
+        socketAddress.sa_family = AF_INET;
     }
     else if(res->ai_family == AF_INET6) {
-        socketAddress->sa_family = AF_INET6;
-        tcpSocketFD = socket(AF_INET6, SOCK_STREAM, SOCK_NONBLOCK);
+        socketAddress.sa_family = AF_INET6;
+        tcpSocketFD = socket(AF_INET6, SOCK_STREAM, 0);
     }
 
-    if(tcpSocketFD < 0)
-        logMessage("Something went wrong while creating the socket.");
+    if(tcpSocketFD < 0) {
+        logMessage("Something went wrong while creating the socket.\n");
+	return 1;
+	}
 
     //connect to Server
-    strncpy(socketAddress->sa_data, serverIP, addressLength);
+    strncpy(socketAddress.sa_data, serverIP, addressLength);
 
     success = connect(tcpSocketFD, (struct sockaddr *) &socketAddress, addressLength);
 
-    if(success < 0)
-        logMessage("Something went wrong while connecting to socket");
+    if(success < 0){
+        logMessage("Something went wrong while connecting to socket\n");
+	return 1;
+	}
 
     //WENN auch lesen dann muss man tcpSocketfd dublicaten und dann ein eigenen filepointerread erstellen
     FILE *fpw = fdopen(tcpSocketFD, "w");
     //write on Socket
-    if(fprintf(fpw, "%s", message))
-        logMessage("Something went wrong with writing on socket");
+    if(fprintf(fpw, "%s", message)){
+        logMessage("Something went wrong with writing on socket\n");
+	return 1;
+	}
+
     fflush(fpw);
 
     shutdown(tcpSocketFD, SHUT_WR);
@@ -86,6 +97,6 @@ int main(const int argc,const char *argv[]) {
 }
 
 void usagefunc(FILE *stream, const char *cmnd, int exitcode){
-    fprintf(stream, "%s", cmnd);
+    fprintf(stream, "Usage: %s -s <server> -u <user> -m <message> -p <port> -i <imageURL>\n", cmnd);
     exit(exitcode);
 }

@@ -4,6 +4,6 @@
 
 #include "logger.h"
 
-void logMessage(char *message){
+void logMessage(const char *message){
     fprintf(stderr, "Error: %s", message);
 }
